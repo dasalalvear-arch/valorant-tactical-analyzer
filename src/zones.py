@@ -4,11 +4,11 @@ import numpy as np
 # Coordinate ranges per map (x_min, x_max, y_min, y_max)
 # Derived from Riot API game coordinate observations (origin at 0)
 MAP_BOUNDS: dict[str, tuple[float, float, float, float]] = {
-    "ascent":   (0, 6300, 0, 4200),
-    "bind":     (0, 7100, 0, 5100),
-    "haven":    (0, 6600, 0, 4400),
-    "split":    (0, 6500, 0, 4100),
-    "fracture": (0, 6800, 0, 4600),
+    "ascent":   (2900, 6300, 1300, 4200),
+    "bind":     (3800, 7100, 2200, 5100),
+    "haven":    (2200, 6600, 1100, 4400),
+    "split":    (3100, 6500, 1500, 4100),
+    "fracture": (2500, 6800, 1800, 4600),
 }
 DEFAULT_BOUNDS = (0, 10000, 0, 10000)
 

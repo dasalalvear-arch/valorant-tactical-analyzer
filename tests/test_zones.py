@@ -13,9 +13,11 @@ def test_normalize_coordinates_clamps_to_unit():
 
 
 def test_normalize_uses_per_map_bounds():
+    # x=3200 → (3200-2900)/(6300-2900) ≈ 0.088
+    # x=5800 → (5800-2900)/(6300-2900) ≈ 0.853
     df = pd.DataFrame({
-        "x": [100, 900],
-        "y": [200, 800],
+        "x": [3200, 5800],
+        "y": [2000, 3800],
         "map": ["ascent", "ascent"],
     })
     result = normalize_coordinates(df)
