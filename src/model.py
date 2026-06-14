@@ -8,6 +8,8 @@ from sklearn.preprocessing import StandardScaler
 
 MODEL_DIR = Path(__file__).parent.parent / "data" / "processed"
 
+FEATURE_COLS = ["avg_acs", "avg_kd", "avg_hs", "winrate", "games"]
+
 
 def build_features(matches_df: pd.DataFrame) -> pd.DataFrame:
     """Aggregates per-player stats from match history."""
@@ -21,7 +23,7 @@ def build_features(matches_df: pd.DataFrame) -> pd.DataFrame:
 
 
 def train_model(features_df: pd.DataFrame) -> Pipeline:
-    X = features_df[["avg_acs", "avg_kd", "avg_hs", "winrate", "games"]]
+    X = features_df[FEATURE_COLS]
     y = (features_df["winrate"] >= 0.5).astype(int)
 
     pipeline = Pipeline([
@@ -58,20 +60,24 @@ def predict_match(
     team_b: list[dict],
     map_name: str,
 ) -> dict:
-    fallback = features_df[["avg_acs", "avg_kd", "avg_hs", "winrate", "games"]].mean()
+    fallback = features_df[FEATURE_COLS].mean()
 
-    def _team_vector(team: list[dict]) -> np.ndarray:
+    def _team_vector(team: list[dict]) -> pd.DataFrame:
         players = [p["player"] for p in team]
         rows = features_df[features_df["player"].isin(players)]
         if rows.empty:
             vec = fallback.values
         else:
-            vec = rows[["avg_acs", "avg_kd", "avg_hs", "winrate", "games"]].mean().values
-        return vec.reshape(1, -1)
+            vec = rows[FEATURE_COLS].mean().values
+        return pd.DataFrame([vec], columns=FEATURE_COLS)
 
     prob_a = model.predict_proba(_team_vector(team_a))[0][1]
     prob_b = model.predict_proba(_team_vector(team_b))[0][1]
     total = prob_a + prob_b
+
+    if total == 0.0:
+        prob_a, prob_b = 0.5, 0.5
+        total = 1.0
 
     return {
         "team_a_win_prob": round(float(prob_a / total), 4),
