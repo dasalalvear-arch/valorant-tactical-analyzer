@@ -9,12 +9,18 @@ import os
 import requests
 import pandas as pd
 from pathlib import Path
+from dotenv import load_dotenv
 
 HENRIK_BASE = "https://api.henrikdev.xyz/valorant"
 # Paths absolutos resueltos desde la ubicación de este archivo, no desde el cwd:
 # así funciona igual corriendo en local, en los tests o dentro de Docker.
 ROOT = Path(__file__).parent.parent
 PROCESSED_DIR = ROOT / "data" / "processed"
+
+# Carga las variables del archivo .env al entorno del proceso (HENRIK_API_KEY, etc.).
+# Sin esto, os.getenv() devolvería vacío aunque el archivo .env exista.
+# Si el .env no está (ej. en Docker, donde las vars se inyectan), no hace nada.
+load_dotenv(ROOT / ".env")
 
 
 def fetch_matches(name: str, tag: str, region: str = "na", count: int = 20) -> list:
