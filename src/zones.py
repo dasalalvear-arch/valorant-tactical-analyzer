@@ -1,3 +1,5 @@
+import warnings
+
 import pandas as pd
 import numpy as np
 
@@ -9,22 +11,31 @@ MAP_BOUNDS: dict[str, tuple[float, float, float, float]] = {
     "haven":    (2200, 6600, 1100, 4400),
     "split":    (3100, 6500, 1500, 4100),
     "fracture": (2500, 6800, 1800, 4600),
+    # Remaining maps — bounds need calibration with real Riot API data
+    "pearl":    (2200, 6400, 1400, 4600),
+    "lotus":    (2400, 6200, 1200, 4800),
+    "sunset":   (2600, 6500, 1300, 4300),
+    "abyss":    (2800, 6600, 1500, 4500),
+    "icebox":   (2300, 6100, 1100, 4100),
 }
-DEFAULT_BOUNDS = (0, 10000, 0, 10000)
+DEFAULT_BOUNDS = (0, 10_000, 0, 10_000)
 
 
 def normalize_coordinates(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
-    df["x_norm"] = 0.0
-    df["y_norm"] = 0.0
-
-    for map_name, group_idx in df.groupby("map").groups.items():
-        x_min, x_max, y_min, y_max = MAP_BOUNDS.get(map_name, DEFAULT_BOUNDS)
-        df.loc[group_idx, "x_norm"] = (df.loc[group_idx, "x"] - x_min) / (x_max - x_min)
-        df.loc[group_idx, "y_norm"] = (df.loc[group_idx, "y"] - y_min) / (y_max - y_min)
-
-    df["x_norm"] = df["x_norm"].clip(0, 1)
-    df["y_norm"] = df["y_norm"].clip(0, 1)
+    unknown_maps = set(df["map"].unique()) - set(MAP_BOUNDS.keys())
+    if unknown_maps:
+        warnings.warn(
+            f"Maps {unknown_maps} not in MAP_BOUNDS. Using DEFAULT_BOUNDS — zone accuracy will be degraded.",
+            stacklevel=2,
+        )
+    bounds = df["map"].map(lambda m: MAP_BOUNDS.get(m, DEFAULT_BOUNDS))
+    x_min = bounds.map(lambda b: b[0])
+    x_max = bounds.map(lambda b: b[1])
+    y_min = bounds.map(lambda b: b[2])
+    y_max = bounds.map(lambda b: b[3])
+    df["x_norm"] = ((df["x"] - x_min) / (x_max - x_min)).clip(0, 1)
+    df["y_norm"] = ((df["y"] - y_min) / (y_max - y_min)).clip(0, 1)
     return df
 
 
@@ -39,6 +50,10 @@ def compute_zone_stats(
     df: pd.DataFrame,
     min_events: int = 10,
 ) -> pd.DataFrame:
+    required = {"player", "map", "zone_row", "zone_col", "side", "result"}
+    missing = required - set(df.columns)
+    if missing:
+        raise ValueError(f"DataFrame missing required columns: {missing}. Call assign_zones() first.")
     group_cols = ["player", "map", "zone_row", "zone_col", "side"]
 
     kills = df[df["result"] == "kill"].groupby(group_cols).size().reset_index(name="kills")
@@ -48,8 +63,7 @@ def compute_zone_stats(
     stats["kills"] = stats["kills"].astype(int)
     stats["deaths"] = stats["deaths"].astype(int)
     stats["total_events"] = stats["kills"] + stats["deaths"]
-    stats["kill_rate"] = stats["kills"] / stats["total_events"].replace(0, np.nan)
-    stats["kill_rate"] = stats["kill_rate"].fillna(0).round(4)
+    stats["kill_rate"] = (stats["kills"] / stats["total_events"]).round(4)
     stats["insufficient_sample"] = stats["total_events"] < min_events
 
     return stats

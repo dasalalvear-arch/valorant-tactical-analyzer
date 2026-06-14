@@ -43,7 +43,7 @@ def test_compute_zone_stats_separates_atk_def(sample_kills_df):
     df_with_zones = assign_zones(sample_kills_df, rows=ROWS, cols=COLS)
     stats = compute_zone_stats(df_with_zones)
     sides = stats["side"].unique()
-    assert "ATK" in sides or "DEF" in sides
+    assert "ATK" in sides and "DEF" in sides
 
 
 def test_zones_with_insufficient_sample_flagged(sample_kills_df):
