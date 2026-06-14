@@ -26,3 +26,9 @@ def sample_zone_stats_df():
         "kill_rate": [0.83, 0.62],
         "insufficient_sample": [False, False],
     })
+
+@pytest.fixture
+def mock_model(mocker):
+    model = mocker.MagicMock()
+    model.predict_proba.return_value = [[0.3, 0.7]]
+    return model

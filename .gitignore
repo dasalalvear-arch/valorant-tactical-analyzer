@@ -3,3 +3,13 @@ data/raw/
 __pycache__/
 *.pkl
 .superpowers/
+*.pyc
+*.pyo
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+notebooks/.ipynb_checkpoints/
+models/
+data/processed/
