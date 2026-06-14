@@ -28,17 +28,16 @@ def extract_kills(matches: list) -> pd.DataFrame:
         match_id = match["metadata"]["matchid"]
 
         for round_data in match.get("rounds", []):
-            attacking_team = round_data.get("attacker_team", "")
             for ps in round_data.get("player_stats", []):
-                player = ps["player_display_name"]
-                player_team = _get_player_team(match, player)
-                side = "ATK" if player_team == attacking_team else "DEF"
-
                 for kill in ps.get("kills", []):
                     killer = kill.get("killer_display_name", "")
                     victim = kill.get("victim_display_name", "")
+                    killer_team = kill.get("killer_team", "")
+                    attacking_team = kill.get("attacker_team", "")
+                    killer_side = "ATK" if killer_team == attacking_team else "DEF"
+                    victim_side = "DEF" if killer_side == "ATK" else "ATK"
 
-                    killer_loc = _find_location(kill["player_locations_on_kill"], killer)
+                    killer_loc = _find_location(kill.get("player_locations_on_kill", []), killer)
                     if not killer_loc:
                         continue
 
@@ -46,15 +45,13 @@ def extract_kills(matches: list) -> pd.DataFrame:
                         "match_id": match_id,
                         "map": map_name,
                         "player": killer,
-                        "side": side,
+                        "side": killer_side,
                         "result": "kill",
                         "x": killer_loc["x"],
                         "y": killer_loc["y"],
                     })
-
-                    victim_loc = _find_location(kill["player_locations_on_kill"], victim)
+                    victim_loc = _find_location(kill.get("player_locations_on_kill", []), victim)
                     if victim_loc:
-                        victim_side = "DEF" if side == "ATK" else "ATK"
                         rows.append({
                             "match_id": match_id,
                             "map": map_name,
@@ -75,13 +72,6 @@ def save_kills(df: pd.DataFrame, player_tag: str) -> Path:
     path = PROCESSED_DIR / f"kills_{player_tag.replace('#', '_')}.csv"
     df.to_csv(path, index=False)
     return path
-
-
-def _get_player_team(match: dict, player: str) -> str:
-    for p in match.get("players", {}).get("all_players", []):
-        if p.get("name", "") + "#" + p.get("tag", "") == player:
-            return p.get("team", "")
-    return ""
 
 
 def _find_location(locations: list, player: str) -> dict | None:
