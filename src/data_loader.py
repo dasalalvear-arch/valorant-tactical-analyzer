@@ -4,8 +4,8 @@ import pandas as pd
 from pathlib import Path
 
 HENRIK_BASE = "https://api.henrikdev.xyz/valorant"
-RAW_DIR = Path("data/raw")
-PROCESSED_DIR = Path("data/processed")
+ROOT = Path(__file__).parent.parent
+PROCESSED_DIR = ROOT / "data" / "processed"
 
 
 def fetch_matches(name: str, tag: str, region: str = "na", count: int = 20) -> list:
@@ -15,8 +15,16 @@ def fetch_matches(name: str, tag: str, region: str = "na", count: int = 20) -> l
     if api_key:
         headers["Authorization"] = api_key
 
-    response = requests.get(url, headers=headers, timeout=10)
-    response.raise_for_status()
+    try:
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+    except requests.exceptions.Timeout:
+        raise RuntimeError(f"Timeout al contactar HenrikDev API para {name}#{tag}")
+    except requests.exceptions.HTTPError as e:
+        raise RuntimeError(f"Error HTTP {response.status_code} de HenrikDev API: {e}")
+    except requests.exceptions.RequestException as e:
+        raise RuntimeError(f"Error de red al contactar HenrikDev API: {e}")
+
     data = response.json()
     return data.get("data", [])
 

@@ -1,5 +1,5 @@
-from unittest.mock import patch, MagicMock
-from src.data_loader import fetch_matches, extract_kills
+import pandas as pd
+from src.data_loader import fetch_matches, extract_kills, save_kills
 
 MOCK_MATCH = {
     "data": [{
@@ -38,7 +38,6 @@ def test_fetch_matches_returns_list(mocker):
     assert len(result) == 1
 
 def test_extract_kills_returns_dataframe(mocker):
-    import pandas as pd
     kills = extract_kills(MOCK_MATCH["data"])
     assert isinstance(kills, pd.DataFrame)
     assert "x" in kills.columns
@@ -47,7 +46,6 @@ def test_extract_kills_returns_dataframe(mocker):
     assert "result" in kills.columns
 
 def test_extract_kills_includes_both_killer_and_victim():
-    import pandas as pd
     kills = extract_kills(MOCK_MATCH["data"])
     assert len(kills) >= 1
     results = kills["result"].unique()
@@ -62,8 +60,16 @@ def test_extract_kills_includes_both_killer_and_victim():
     assert s1mple_death.iloc[0]["side"] == "DEF"
 
 def test_extract_kills_empty_matches_returns_empty_df():
-    import pandas as pd
     kills = extract_kills([])
     assert isinstance(kills, pd.DataFrame)
     assert len(kills) == 0
     assert "x" in kills.columns
+
+
+def test_save_kills_creates_csv(tmp_path, monkeypatch):
+    import src.data_loader as dl
+    monkeypatch.setattr(dl, "PROCESSED_DIR", tmp_path)
+    df = extract_kills(MOCK_MATCH["data"])
+    path = save_kills(df, "TenZ#NA1")
+    assert path.exists()
+    assert path.name == "kills_TenZ_NA1.csv"
