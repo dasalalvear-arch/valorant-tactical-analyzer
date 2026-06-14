@@ -6,6 +6,7 @@ y las aplana a un DataFrame de eventos (kills/deaths) con coordenadas.
 El resto del pipeline (zones, model) consume ese DataFrame.
 """
 import os
+import re
 import requests
 import pandas as pd
 from pathlib import Path
@@ -47,9 +48,9 @@ def fetch_matches(name: str, tag: str, region: str = "na", count: int = 20) -> l
     except requests.exceptions.Timeout:
         raise RuntimeError(f"Timeout al contactar HenrikDev API para {name}#{tag}")
     except requests.exceptions.HTTPError as e:
-        raise RuntimeError(f"Error HTTP {response.status_code} de HenrikDev API: {e}")
+        raise RuntimeError(f"Error HTTP {response.status_code} de HenrikDev API: {_redact(e)}")
     except requests.exceptions.RequestException as e:
-        raise RuntimeError(f"Error de red al contactar HenrikDev API: {e}")
+        raise RuntimeError(f"Error de red al contactar HenrikDev API: {_redact(e)}")
 
     data = response.json()
     return data.get("data", [])
@@ -170,3 +171,8 @@ def _find_location(locations: list, player: str) -> dict | None:
         if loc.get("player_display_name") == player:
             return loc.get("location")
     return None
+
+
+def _redact(text) -> str:
+    """Oculta la API key si aparece en una URL (ej. en mensajes de error de requests)."""
+    return re.sub(r"(api_key=)[^&\s]+", r"\1***", str(text))

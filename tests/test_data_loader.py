@@ -1,4 +1,6 @@
 import pandas as pd
+import pytest
+import requests
 from src.data_loader import fetch_matches, extract_kills, save_kills
 
 # Estructura REAL de la API HenrikDev v3 (verificada contra datos en vivo):
@@ -51,6 +53,21 @@ def test_fetch_matches_returns_list(mocker):
     result = fetch_matches("TenZ", "NA1", region="na")
     assert isinstance(result, list)
     assert len(result) == 1
+
+
+def test_fetch_matches_redacts_api_key_in_errors(mocker, monkeypatch):
+    # Como la key viaja en la URL (?api_key=), un error HTTP de requests la incluye
+    # en su mensaje. fetch_matches debe ocultarla antes de propagar el error.
+    monkeypatch.setenv("HENRIK_API_KEY", "HDEV-supersecret123")
+    resp = mocker.patch("src.data_loader.requests.get").return_value
+    resp.status_code = 404
+    resp.raise_for_status.side_effect = requests.exceptions.HTTPError(
+        "404 Not Found for url: https://api.henrikdev.xyz/v3/matches/na/X/1?size=20&api_key=HDEV-supersecret123"
+    )
+    with pytest.raises(RuntimeError) as exc:
+        fetch_matches("X", "1", region="na")
+    assert "HDEV-supersecret123" not in str(exc.value)
+    assert "api_key=***" in str(exc.value)
 
 
 def test_extract_kills_returns_dataframe():
