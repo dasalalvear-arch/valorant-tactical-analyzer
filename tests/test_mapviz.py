@@ -51,3 +51,22 @@ def test_get_map_asset_mapa_invalido_lanza_valueerror(tmp_path, mocker):
     mocker.patch.object(mapviz, "fetch_map_transforms", return_value={})
     with pytest.raises(ValueError):
         get_map_asset("the range")
+
+
+def test_fetch_map_transforms_descarta_mapas_sin_multiplicadores(mocker):
+    fake = {"data": [
+        {"displayName": "Ascent", "xMultiplier": 0.00007, "yMultiplier": -0.00007,
+         "xScalarToAdd": 0.813895, "yScalarToAdd": 0.573242, "displayIcon": "http://img/ascent.png"},
+        {"displayName": "The Range", "xMultiplier": 0, "yMultiplier": 0,
+         "xScalarToAdd": 0, "yScalarToAdd": 0, "displayIcon": "http://img/range.png"},
+    ]}
+    resp = mocker.Mock()
+    resp.json.return_value = fake
+    resp.raise_for_status = mocker.Mock()
+    mocker.patch("src.mapviz.requests.get", return_value=resp)
+
+    out = mapviz.fetch_map_transforms()
+    assert set(out.keys()) == {"ascent"}          # The Range descartado (multiplicadores en 0)
+    assert out["ascent"]["xMultiplier"] == 0.00007
+    assert out["ascent"]["displayIcon"] == "http://img/ascent.png"
+    assert "displayName" not in out["ascent"]     # solo las 5 claves esperadas
