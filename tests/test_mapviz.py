@@ -1,7 +1,9 @@
 import pandas as pd
 import pytest
 
+import src.mapviz as mapviz
 from src.mapviz import game_to_pixel
+from src.mapviz import get_map_asset
 
 
 def test_game_to_pixel_aplica_transformacion_con_swap_de_ejes():
@@ -17,3 +19,35 @@ def test_game_to_pixel_aplica_transformacion_con_swap_de_ejes():
     assert out["py"].iloc[0] == pytest.approx(400.0)
     # No muta el df original.
     assert "px" not in df.columns
+
+
+def test_get_map_asset_cachea_imagen_y_no_redescarga(tmp_path, mocker):
+    mocker.patch.object(mapviz, "MAPS_DIR", tmp_path)
+    mocker.patch.object(mapviz, "TRANSFORMS_PATH", tmp_path / "transforms.json")
+    mocker.patch.object(mapviz, "fetch_map_transforms", return_value={
+        "ascent": {
+            "xMultiplier": 0.00007, "yMultiplier": -0.00007,
+            "xScalarToAdd": 0.813895, "yScalarToAdd": 0.573242,
+            "displayIcon": "http://img/ascent.png",
+        }
+    })
+    get = mocker.patch("src.mapviz.requests.get")
+    get.return_value.content = b"PNGDATA"
+    get.return_value.raise_for_status = mocker.Mock()
+
+    path1, transform = get_map_asset("Ascent")           # case-insensitive
+    assert path1.read_bytes() == b"PNGDATA"
+    assert transform["xMultiplier"] == 0.00007
+    assert get.call_count == 1                            # una descarga de imagen
+
+    path2, _ = get_map_asset("ascent")
+    assert path2 == path1
+    assert get.call_count == 1                            # segunda vez: caché, no re-descarga
+
+
+def test_get_map_asset_mapa_invalido_lanza_valueerror(tmp_path, mocker):
+    mocker.patch.object(mapviz, "MAPS_DIR", tmp_path)
+    mocker.patch.object(mapviz, "TRANSFORMS_PATH", tmp_path / "transforms.json")
+    mocker.patch.object(mapviz, "fetch_map_transforms", return_value={})
+    with pytest.raises(ValueError):
+        get_map_asset("the range")
