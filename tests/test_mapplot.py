@@ -41,3 +41,38 @@ def test_plot_kills_on_map_sin_datos_no_rompe(tmp_path, mocker):
     # Filtro que no matchea ningún jugador -> figura vacía, sin excepción.
     fig = mapplot.plot_kills_on_map(_kills_demo(), "ascent", player="NADIE", mode="heatmap")
     assert fig is not None
+
+
+def test_plot_kills_on_map_heatmap_con_datos_dibuja(tmp_path, mocker):
+    img_path = tmp_path / "ascent.png"
+    mpimg.imsave(img_path, np.zeros((100, 100, 3), dtype=np.uint8))
+    transform = {"xMultiplier": 0.001, "yMultiplier": -0.001,
+                 "xScalarToAdd": 0.5, "yScalarToAdd": 0.5}
+    mocker.patch("src.mapplot.get_map_asset", return_value=(img_path, transform))
+
+    fig = mapplot.plot_kills_on_map(_kills_demo(), "ascent", mode="heatmap")
+    ax = fig.axes[0]
+    assert len(ax.collections) >= 1          # la rama heatmap (hexbin) corrió con datos
+    assert "densidad" in ax.get_title()
+
+
+def test_plot_kills_on_map_filtra_por_player_y_side(tmp_path, mocker):
+    img_path = tmp_path / "ascent.png"
+    mpimg.imsave(img_path, np.zeros((100, 100, 3), dtype=np.uint8))
+    transform = {"xMultiplier": 0.001, "yMultiplier": -0.001,
+                 "xScalarToAdd": 0.5, "yScalarToAdd": 0.5}
+    mocker.patch("src.mapplot.get_map_asset", return_value=(img_path, transform))
+
+    df = pd.DataFrame({
+        "map": ["ascent"] * 4,
+        "player": ["A#EU", "A#EU", "B#EU", "B#EU"],
+        "side": ["ATK", "DEF", "ATK", "DEF"],
+        "result": ["kill"] * 4,
+        "x": [10, 20, 30, 40],
+        "y": [10, 20, 30, 40],
+    })
+    fig = mapplot.plot_kills_on_map(df, "ascent", player="A#EU", side="ATK", mode="scatter")
+    ax = fig.axes[0]
+    # player=A#EU y side=ATK deja exactamente 1 kill; un filtro no-op dejaría más.
+    assert len(ax.collections[0].get_offsets()) == 1
+    assert "ATK" in ax.get_title()
