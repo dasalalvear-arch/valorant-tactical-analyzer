@@ -13,10 +13,13 @@ def test_game_to_pixel_aplica_transformacion_con_swap_de_ejes():
         "xMultiplier": 0.001, "yMultiplier": -0.001,
         "xScalarToAdd": 0.5, "yScalarToAdd": 0.5,
     }
-    out = game_to_pixel(df, transform, size=(1000, 1000))
-    # nx = 200*0.001 + 0.5 = 0.7 -> px = 700 ; ny = 100*(-0.001) + 0.5 = 0.4 -> py = 400
+    # Tamaño NO cuadrado a proposito: si la implementacion intercambiara ancho y alto,
+    # saldria px=350/py=400 y el test fallaria. Con (1000,1000) el swap pasaria inadvertido.
+    out = game_to_pixel(df, transform, size=(1000, 500))
+    # nx = 200*0.001 + 0.5 = 0.7 -> px = 0.7*1000 = 700
+    # ny = 100*(-0.001) + 0.5 = 0.4 -> py = 0.4*500  = 200
     assert out["px"].iloc[0] == pytest.approx(700.0)
-    assert out["py"].iloc[0] == pytest.approx(400.0)
+    assert out["py"].iloc[0] == pytest.approx(200.0)
     # No muta el df original.
     assert "px" not in df.columns
 
@@ -49,8 +52,10 @@ def test_get_map_asset_mapa_invalido_lanza_valueerror(tmp_path, mocker):
     mocker.patch.object(mapviz, "MAPS_DIR", tmp_path)
     mocker.patch.object(mapviz, "TRANSFORMS_PATH", tmp_path / "transforms.json")
     mocker.patch.object(mapviz, "fetch_map_transforms", return_value={})
+    get = mocker.patch("src.mapviz.requests.get")   # red cortada por si el orden cambia
     with pytest.raises(ValueError):
         get_map_asset("the range")
+    assert get.call_count == 0                      # el ValueError precede a la descarga
 
 
 def test_fetch_map_transforms_descarta_mapas_sin_multiplicadores(mocker):
