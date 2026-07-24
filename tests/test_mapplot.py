@@ -59,6 +59,13 @@ def test_plot_kills_on_map_heatmap_con_datos_dibuja(mapa_mockeado):
     assert "densidad" in ax.get_title()
 
 
+def test_plot_kills_on_map_heatmap_tiene_barra_de_color(mapa_mockeado):
+    # Sin barra, el degradado de color del hexbin no se puede interpretar.
+    fig = mapplot.plot_kills_on_map(_kills_demo(), "ascent", mode="heatmap")
+    assert len(fig.axes) == 2                # eje del mapa + eje de la barra de color
+    assert "eventos" in fig.axes[1].get_ylabel()
+
+
 def test_plot_kills_on_map_filtra_por_player_y_side(mapa_mockeado):
     df = pd.DataFrame({
         "map": ["ascent"] * 4,
@@ -82,18 +89,20 @@ def test_plot_kills_on_map_filtra_por_result(mapa_mockeado):
     ax = fig.axes[0]
     assert len(ax.collections[0].get_offsets()) == 1   # de las 2 filas de ascent, solo la kill
     assert "kills" in ax.get_title()
+    assert ax.get_legend() is None                     # un solo tipo: leyenda innecesaria
 
     fig2 = mapplot.plot_kills_on_map(_kills_demo(), "ascent", result="death", mode="scatter")
     assert len(fig2.axes[0].collections[0].get_offsets()) == 1
     assert "muertes" in fig2.axes[0].get_title()
 
 
-def test_plot_kills_on_map_sin_filtro_de_result_mezcla_kills_y_muertes(mapa_mockeado):
-    # Documenta el comportamiento por defecto: result="ALL" dibuja los 2 eventos de
-    # ascent y el titulo dice "eventos", no "kills".
+def test_plot_kills_on_map_all_separa_kills_y_muertes_por_color(mapa_mockeado):
+    # Con ALL hay eventos de significado opuesto: van en colores distintos y con leyenda.
     fig = mapplot.plot_kills_on_map(_kills_demo(), "ascent", mode="scatter")
     ax = fig.axes[0]
-    assert len(ax.collections[0].get_offsets()) == 2
+    assert len(ax.collections) == 2                    # una coleccion por tipo de evento
+    etiquetas = {t.get_text() for t in ax.get_legend().get_texts()}
+    assert etiquetas == {"kills", "muertes"}
     assert "eventos" in ax.get_title()
 
 
@@ -101,3 +110,15 @@ def test_plot_kills_on_map_mode_invalido_lanza_valueerror():
     # La validacion precede a cualquier I/O, por eso no hace falta mockear el asset.
     with pytest.raises(ValueError):
         mapplot.plot_kills_on_map(_kills_demo(), "ascent", mode="heat_map")
+
+
+def test_encuadre_recorta_el_padding_transparente():
+    img = np.zeros((100, 100, 4), dtype=float)
+    img[30:70, 20:60, 3] = 1.0        # contenido visible: filas 30-69, cols 20-59
+    # Se añaden 12 px de margen a cada lado, sin salirse de la imagen.
+    assert mapplot._encuadre(img) == (8, 71, 18, 81)
+
+
+def test_encuadre_sin_canal_alfa_usa_la_imagen_completa():
+    img = np.zeros((100, 80, 3), dtype=float)
+    assert mapplot._encuadre(img) == (0, 80, 0, 100)
