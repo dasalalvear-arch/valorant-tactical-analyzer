@@ -15,6 +15,25 @@ MAPS_DIR = Path(__file__).parent.parent / "data" / "maps"
 TRANSFORMS_PATH = MAPS_DIR / "transforms.json"
 
 
+def _get(url: str):
+    """
+    GET con mensaje claro si no hay conexión.
+
+    Solo la primera descarga (constantes + imagen) necesita red; después todo sale
+    del caché de data/maps/. `from None` evita que la excepción encadenada de
+    requests tape el mensaje útil con un muro de urllib3.
+    """
+    try:
+        resp = requests.get(url, timeout=30)
+        resp.raise_for_status()
+        return resp
+    except requests.exceptions.RequestException:
+        raise RuntimeError(
+            "No se pudieron descargar los assets del mapa. Se necesita conexión la "
+            "primera vez; después se usa el caché de data/maps/."
+        ) from None
+
+
 def fetch_map_transforms() -> dict:
     """
     Baja de valorant-api las constantes de transformación por mapa.
@@ -23,8 +42,7 @@ def fetch_map_transforms() -> dict:
     yScalarToAdd, displayIcon}}. Descarta mapas de práctica/TDM, que traen los
     multiplicadores en 0 (no tienen transformación válida).
     """
-    resp = requests.get(VALORANT_API_MAPS, timeout=30)
-    resp.raise_for_status()
+    resp = _get(VALORANT_API_MAPS)
     out = {}
     for m in resp.json()["data"]:
         if not m["xMultiplier"] or not m["yMultiplier"]:
@@ -57,15 +75,16 @@ def get_map_asset(map_name: str) -> tuple[Path, dict]:
     map_name = map_name.lower()
     transforms = _load_transforms()
     if map_name not in transforms:
-        raise ValueError(f"Mapa '{map_name}' sin transformación válida en valorant-api.")
+        raise ValueError(
+            f"Mapa '{map_name}' sin transformación válida en valorant-api "
+            "(si es un mapa nuevo, borra data/maps/transforms.json para refrescar el caché)."
+        )
     transform = transforms[map_name]
 
     image_path = MAPS_DIR / f"{map_name}.png"
     if not image_path.exists():
         MAPS_DIR.mkdir(parents=True, exist_ok=True)
-        resp = requests.get(transform["displayIcon"], timeout=30)
-        resp.raise_for_status()
-        image_path.write_bytes(resp.content)
+        image_path.write_bytes(_get(transform["displayIcon"]).content)
     return image_path, transform
 
 
