@@ -76,7 +76,7 @@ def plot_kills_on_map(kills, map_name, player=None, side="ALL", result="ALL", mo
     elif mode == "heatmap":
         # El color del hexágono = cuántos eventos cayeron en esa celda; sin la barra
         # de color el degradado no se puede interpretar.
-        hb = ax.hexbin(df["px"], df["py"], gridsize=20, cmap="plasma", mincnt=2, alpha=0.75)
+        hb = ax.hexbin(df["px"], df["py"], gridsize=20, cmap="plasma", mincnt=1, alpha=0.75)
         fig.colorbar(hb, ax=ax, shrink=0.7, label=f"nº de {etiqueta} por celda")
         ax.set_title(f"{map_name} — densidad de {etiqueta} ({lado})")
     elif result == "ALL":
