@@ -47,6 +47,12 @@ These two pipelines are independent: zone events (kills/deaths with coordinates)
 ### `src/simulation.py`
 Pure function over already-computed `zone_stats` (no model training). `new_distribution` weights must sum to 1.0 (±`tolerance`); zones with no historical data fall back to the player's overall historical kill_rate (or 0.5 if that's also unavailable — checked via `is not None`, since a real 0.0 kill_rate must not be treated as "no data").
 
+### `src/mapviz.py` + `src/mapplot.py` — overlay de kills sobre el mapa real
+- `mapviz.py` is the pure core (no matplotlib). `get_map_asset(map)` downloads and caches the official minimap PNG plus the coordinate-transform constants from valorant-api.com — image at `data/maps/<map>.png` (gitignored), constants at `data/maps/transforms.json` (versioned, 13 maps, so a fresh clone needs no network for coordinates). `game_to_pixel(df, transform, size)` converts game coords to image pixels.
+- The official transform **swaps axes** (the minimap's X uses the game's `y`) and `yMultiplier` is negative (vertical flip). Validated against real match data — sampled events land inside `[0,1]` and visually on real corridors and both bomb sites.
+- **This path deliberately bypasses `MAP_BOUNDS`**, and is currently the only coordinate path that is correct for live data. See the warning in the `zones.py` section above.
+- `mapplot.py` is the thin matplotlib layer: `plot_kills_on_map(kills, map, player, side, result, mode)` renders a scatter or a hexbin density map. **`result` matters:** `extract_kills` emits two rows per kill — a `kill` at the killer's position and a `death` at the victim's — so `result="ALL"` mixes both, and the title says "eventos" rather than "kills" in that case. Use `result="kill"` for where a player gets kills, `"death"` for where they die.
+
 ## Testing conventions
 
 Shared fixtures (`sample_kills_df`, `sample_zone_stats_df`, `mock_model`) live in `tests/conftest.py` — use these rather than constructing ad hoc DataFrames when a test's shape matches. `sample_kills_df` uses coordinates matching `MAP_BOUNDS` for ascent — which, per the 2026-07-23 finding above, are **not** values real matches produce, so that fixture validates against fictional data. Rewriting it is part of the deferred `MAP_BOUNDS` work; don't treat its green tests as evidence the zone pipeline works on live data. API calls in tests are mocked via `pytest-mock` (`mocker.patch("src.data_loader.requests.get")`) — no real network calls in the test suite.
