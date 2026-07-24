@@ -1,3 +1,5 @@
+import traceback
+
 import pandas as pd
 import pytest
 import requests
@@ -140,3 +142,25 @@ def test_save_kills_creates_csv(tmp_path, monkeypatch):
     path = save_kills(df, "TenZ#NA1")
     assert path.exists()
     assert path.name == "kills_TenZ_NA1.csv"
+
+
+def test_fetch_matches_no_filtra_la_api_key_en_el_traceback(mocker):
+    """La api_key no debe aparecer en el traceback, ni via la excepcion encadenada."""
+    fake_key = "HDEV-secret-should-not-leak"
+    response = mocker.Mock()
+    response.status_code = 404
+    response.raise_for_status.side_effect = requests.exceptions.HTTPError(
+        "404 Client Error: Not Found for url: "
+        f"https://api.henrikdev.xyz/valorant/v3/matches/na/X/1?size=20&api_key={fake_key}"
+    )
+    mocker.patch("src.data_loader.requests.get", return_value=response)
+
+    try:
+        fetch_matches("X", "1")
+    except RuntimeError:
+        tb = traceback.format_exc()
+    else:
+        pytest.fail("fetch_matches debia lanzar RuntimeError")
+
+    assert fake_key not in tb   # sin fuga por la excepcion encadenada
+    assert "***" in tb          # y la URL sale redactada
