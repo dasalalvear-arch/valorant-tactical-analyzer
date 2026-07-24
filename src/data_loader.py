@@ -45,12 +45,14 @@ def fetch_matches(name: str, tag: str, region: str = "na", count: int = 20) -> l
     try:
         response = requests.get(url, params=params, timeout=10)
         response.raise_for_status()
+    # `from None` corta el encadenamiento de excepciones: sin esto Python imprime
+    # también la excepción original, cuya URL lleva la api_key SIN redactar.
     except requests.exceptions.Timeout:
-        raise RuntimeError(f"Timeout al contactar HenrikDev API para {name}#{tag}")
+        raise RuntimeError(f"Timeout al contactar HenrikDev API para {name}#{tag}") from None
     except requests.exceptions.HTTPError as e:
-        raise RuntimeError(f"Error HTTP {response.status_code} de HenrikDev API: {_redact(e)}")
+        raise RuntimeError(f"Error HTTP {response.status_code} de HenrikDev API: {_redact(e)}") from None
     except requests.exceptions.RequestException as e:
-        raise RuntimeError(f"Error de red al contactar HenrikDev API: {_redact(e)}")
+        raise RuntimeError(f"Error de red al contactar HenrikDev API: {_redact(e)}") from None
 
     data = response.json()
     return data.get("data", [])
