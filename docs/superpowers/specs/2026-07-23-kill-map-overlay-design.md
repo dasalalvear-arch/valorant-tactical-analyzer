@@ -142,6 +142,15 @@ por pieza no trivial:
 
 ---
 
+## Cambios posteriores a la implementación
+
+Registrados aquí para que el spec no quede desalineado con el código:
+
+- **El filtro por `result` se perdió entre este spec y el plan** (el plan omitió el parámetro), y el overlay acabó dibujando muertes bajo un título que decía "kills". Detectado en el review final y corregido: `plot_kills_on_map` acepta `result="ALL"/"kill"/"death"`.
+- **Codificación por color y leyenda:** con `result="ALL"` los dos tipos de evento se dibujan en colores distintos (kills azul, muertes naranja) con leyenda, en vez de puntos idénticos con significados opuestos.
+- **Barra de color en el heatmap:** el degradado del hexbin representa nº de eventos por celda y no era interpretable sin escala.
+- **Encuadre al contenido del minimapa:** los PNG de valorant-api traen ~10% de padding transparente.
+
 ## Alcance / No-objetivos (YAGNI)
 
 - **Solo capa descriptiva.** No toca el modelo predictivo ni `zones.py`.
